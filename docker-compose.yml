@@ -75,10 +75,16 @@ services:
                 condition: service_healthy
         volumes:
             - ./dashboard_metric.ndjson:/dashboard_metric.ndjson:ro
+            - ./dashboardSite.ndjson:/dashboardSite.ndjson:ro
+        
         command: >
             curl -sf -X POST "http://kibana:5601/api/saved_objects/_import?overwrite=true"
             -H "kbn-xsrf: true"
             --form file=@/dashboard_metric.ndjson
+            --next
+            -sf -X POST "http://kibana:5601/api/saved_objects/_import?overwrite=true"
+            -H "kbn-xsrf: true"
+            --form file=@/dashboardSite.ndjson
 
 volumes:
     elastic_data:
