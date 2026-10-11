@@ -36,7 +36,7 @@ Il convient de rappeler les ports de chaque conteneurs :
 - Nginx : 8080
 - Logstash : 5044
 - Elasticsearch : 9200
-- Kibana : 5601  
+- Kibana : 5601
 1 - On se connecte sur http://localhost:8080  
 2 - On vérifie qu'un log HTTP est généré :
 ```sh
