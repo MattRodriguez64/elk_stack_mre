@@ -40,14 +40,14 @@ Il convient de rappeler les ports de chaque conteneurs :
 1 - On se connecte sur http://localhost:8080   
 2 - On vérifie qu'un log HTTP est généré :  
 ```sh
-docker exec nginx_container_demo cat /var/log/nginx/access_lab.log
+docker exec nginx_container_v5 cat /var/log/nginx/access_lab.log
 ```
 _Note : Ici on va lire les logs du fichier access_lab.log, il s'agit d'un fichier qu'on crée en plus du fichier access.log de base de nginx, car par défaut docker renvoie les informations de ces fichiers vers stdout de docker et non dans le fichier_
 Résultat :  
 <img width="1422" height="28" alt="image" src="https://github.com/user-attachments/assets/e0e59bb1-2690-4c3a-97cf-3d750de9568c" />
 3 - On vérifie que Logstash a bien traité le log :
 ```sh
-docker logs -f logstash_container_demo
+docker logs -f logstash_container_v5
 ```
 Résultat :  
 <img width="1697" height="454" alt="image" src="https://github.com/user-attachments/assets/dec42835-f852-43b7-a91d-db7364ef5663" />
