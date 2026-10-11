@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Commande — Miam&amp;Go</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="logo" href="/">🛵 Miam&amp;Go</a>
+    <nav>
+      <a href="/">Restaurants</a>
+      <a href="/panier.html">🛒 Panier <span class="badge" data-cart-count hidden>0</span></a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <p><a href="/panier.html">← Retour au panier</a></p>
+    <h1>Finaliser la commande</h1>
+    <div class="layout">
+      <form class="card form-grid" id="order-form">
+        <label>Adresse de livraison
+          <input name="adresse" required placeholder="12 rue de l'Exemple">
+        </label>
+        <label>Créneau
+          <select name="creneau">
+            <option value="asap">Dès que possible</option>
+            <option value="12h00">12h00 – 12h30</option>
+            <option value="12h30">12h30 – 13h00</option>
+            <option value="19h00">19h00 – 19h30</option>
+            <option value="19h30">19h30 – 20h00</option>
+            <option value="20h00">20h00 – 20h30</option>
+          </select>
+        </label>
+        <fieldset>
+          <legend>Paiement</legend>
+          <label><input type="radio" name="paiement" value="carte" checked> Carte bancaire</label>
+          <label><input type="radio" name="paiement" value="paypal"> PayPal</label>
+          <label><input type="radio" name="paiement" value="titre_resto"> Titre-restaurant</label>
+          <label><input type="radio" name="paiement" value="especes"> Espèces</label>
+        </fieldset>
+        <fieldset>
+          <legend>Pourboire pour le livreur</legend>
+          <label><input type="radio" name="pourboire" value="0" checked> Aucun</label>
+          <label><input type="radio" name="pourboire" value="1"> 1 €</label>
+          <label><input type="radio" name="pourboire" value="2"> 2 €</label>
+          <label><input type="radio" name="pourboire" value="3"> 3 €</label>
+        </fieldset>
+        <label>Instructions (facultatif)
+          <textarea name="instructions" rows="2" placeholder="Code d'entrée, étage…"></textarea>
+        </label>
+      </form>
+
+      <div class="card">
+        <h2 id="recap-title">Récapitulatif</h2>
+        <div id="recap"><p class="meta">Chargement…</p></div>
+        <button class="btn" type="submit" form="order-form" id="submit" style="width:100%" disabled>Payer</button>
+      </div>
+    </div>
+  </main>
+
+  <footer>Miam&amp;Go — site de démonstration pour le lab ELK</footer>
+
+  <script src="/assets/app.js"></script>
+  <script>
+    const cart = Shop.cart();
+    if (!cart.resto || !Shop.count(cart)) location.replace('/panier.html');
+
+    const form = document.getElementById('order-form');
+    const submit = document.getElementById('submit');
+
+    Promise.all([Shop.restaurant(cart.resto), Shop.menu(cart.resto)]).then(([resto, plats]) => {
+      const tip = () => Number(form.pourboire.value);
+      const refresh = () => {
+        const t = Shop.totals(cart, resto, plats, tip());
+        document.getElementById('recap-title').textContent = resto.emoji + ' ' + resto.nom;
+        document.getElementById('recap').innerHTML =
+          t.lignes.map(l => '<div class="line"><span>' + l.qte + ' × ' + Shop.esc(l.plat.nom) + '</span><span>' + Shop.euro(l.total) + '</span></div>').join('') +
+          Shop.totalsHtml(t, cart);
+        submit.textContent = 'Payer ' + Shop.euro(t.total);
+        submit.disabled = !t.minimumAtteint;
+        return t;
+      };
+      form.addEventListener('change', refresh);
+      refresh();
+
+      form.addEventListener('submit', e => {
+        e.preventDefault();
+        submit.disabled = true;
+        submit.textContent = 'Paiement en cours…';
+        const t = refresh();
+        const id = 'CMD-' + Date.now().toString(36).toUpperCase();
+        // L'adresse et les instructions restent côté navigateur : seules des
+        // infos non personnelles partent dans l'URL (et donc dans les logs).
+        Shop.api('commande/creation.json', {
+          commande: id,
+          resto: resto.id,
+          articles: Shop.count(cart),
+          sous_total: t.sousTotal.toFixed(2),
+          total: t.total.toFixed(2),
+          // Localisation de l'établissement.
+          // Métriques : carte et comparaison par ville / pays (client.geo.*).
+          ville: resto.ville,
+          pays: resto.pays,
+          lat: resto.lat,
+          lon: resto.lon,
+          creneau: form.creneau.value,
+          paiement: form.paiement.value,
+          pourboire: tip(),
+          promo: t.promoOk ? cart.promo.code : '',
+        }).then(r => {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          Shop.saveLastOrder({ id, resto: resto.id, nom: resto.nom, emoji: resto.emoji, total: t.total, delai: resto.delai });
+          Shop.clearCart('commande_validee');
+          location.href = '/confirmation.html?commande=' + encodeURIComponent(id);
+        }).catch(() => {
+          submit.disabled = false;
+          submit.textContent = 'Réessayer';
+          alert('Le paiement a échoué, merci de réessayer.');
+        });
+      });
+    }).catch(() => location.replace('/panier.html'));
+  </script>
+</body>
+</html>

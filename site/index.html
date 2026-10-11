@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Miam&amp;Go — Nos restaurants dans le monde</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="logo" href="/">🛵 Miam&amp;Go</a>
+    <nav>
+      <a href="/">Restaurants</a>
+      <a href="/panier.html">🛒 Panier <span class="badge" data-cart-count hidden>0</span></a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <h1>Miam&amp;Go, le même goût dans 13 villes du monde</h1>
+      <form class="search" action="/index.html" method="get">
+        <input type="search" name="q" id="q" placeholder="Ville ou pays…">
+        <button class="btn secondary" type="submit">Rechercher</button>
+      </form>
+    </section>
+
+    <nav class="chips" id="chips"></nav>
+
+    <div class="toolbar">
+      <span id="result-count"></span>
+      <label>Trier par
+        <select id="tri">
+          <option value="pertinence">Pertinence</option>
+          <option value="note">Meilleures notes</option>
+          <option value="delai">Plus rapides</option>
+          <option value="frais">Frais de livraison</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="grid" id="list"></div>
+  </main>
+
+  <footer>Miam&amp;Go — site de démonstration pour le lab ELK</footer>
+
+  <script src="/assets/app.js"></script>
+  <script>
+    const CONTINENTS = { europe: 'Europe', amerique: 'Amérique', afrique: 'Afrique', asie: 'Asie' };
+    const q = Shop.param('q').trim();
+    const cat = Shop.param('cat');
+    const tri = Shop.param('tri') || 'pertinence';
+    document.getElementById('q').value = q;
+    document.getElementById('tri').value = tri;
+
+    // Chaque filtre recharge la page : la recherche apparaît dans l'URL loggée par nginx.
+    function urlWith(changes) {
+      const p = new URLSearchParams(location.search);
+      for (const [k, v] of Object.entries(changes)) { if (v) p.set(k, v); else p.delete(k); }
+      const qs = p.toString();
+      return '/index.html' + (qs ? '?' + qs : '');
+    }
+
+    document.getElementById('tri').addEventListener('change', e => {
+      location.href = urlWith({ tri: e.target.value === 'pertinence' ? '' : e.target.value });
+    });
+
+    Shop.restaurants().then(list => {
+      document.getElementById('chips').innerHTML =
+        '<a class="chip' + (cat ? '' : ' active') + '" href="' + urlWith({ cat: '' }) + '">Tous</a>' +
+        Object.entries(CONTINENTS).map(([k, label]) =>
+          '<a class="chip' + (k === cat ? ' active' : '') + '" href="' + urlWith({ cat: k }) + '">' + label + '</a>').join('');
+
+      const needle = q.toLowerCase();
+      let results = list.filter(r =>
+        (!cat || r.continent === cat) &&
+        (!needle || (r.ville + ' ' + r.pays).toLowerCase().includes(needle)));
+
+      if (tri === 'note') results.sort((a, b) => b.note - a.note);
+      if (tri === 'delai') results.sort((a, b) => a.delai - b.delai);
+      if (tri === 'frais') results.sort((a, b) => a.frais - b.frais);
+
+      document.getElementById('result-count').textContent =
+        results.length + ' restaurant' + (results.length > 1 ? 's' : '') + (q ? ' pour « ' + q + ' »' : '');
+
+      const el = document.getElementById('list');
+      if (!results.length) {
+        el.innerHTML = '<div class="empty"><div class="big">🔍</div><p>Aucun restaurant Miam&amp;Go dans cette zone pour le moment.</p><a class="btn" href="/">Voir tous les restaurants</a></div>';
+        return;
+      }
+      el.innerHTML = results.map(r =>
+        '<a class="card" href="/restaurant.html?id=' + encodeURIComponent(r.id) + '">' +
+          '<div class="resto-emoji">' + r.emoji + '</div>' +
+          '<h2>' + Shop.esc(r.nom) + '</h2>' +
+          '<div class="meta">📍 ' + Shop.esc(r.ville) + ', ' + Shop.esc(r.pays) + '</div>' +
+          '<div class="meta">⭐ ' + r.note + ' · ' + r.delai + ' min · livraison ' + Shop.euro(r.frais) + ' · minimum ' + Shop.euro(r.minimum) + '</div>' +
+        '</a>').join('');
+    }).catch(err => {
+      document.getElementById('list').innerHTML = '<div class="notice err">Impossible de charger les restaurants (' + Shop.esc(err.message) + ').</div>';
+    });
+  </script>
+</body>
+</html>
