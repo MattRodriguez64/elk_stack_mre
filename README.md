@@ -37,7 +37,7 @@ Il convient de rappeler les ports de chaque conteneurs :
 - Logstash : 5044
 - Elasticsearch : 9200
 - Kibana : 5601  
-1 - On se connecte sur http://localhost:8080
+1 - On se connecte sur http://localhost:8080  
 2 - On vérifie qu'un log HTTP est généré :
 ```sh
 docker exec nginx_container_demo cat /var/log/nginx/access_lab.log
